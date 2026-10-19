@@ -11,12 +11,28 @@ def find_python_files(root: Path) -> list[Path]:
 		paths.append(file)
 	return paths
 
-
-def chunk_python_file(file_path: Path) -> None:
+def chunk_python_file(file_path: Path) -> list[str]:
 	code = file_path.read_text()
 	node = ast.parse(code)
-	for n in ast.walk(node):
-		print(n)
+	lines = code.splitlines()
+	chunks: list[str] = []
+	for n in node.body:
+		if isinstance(n, ast.FunctionDef):
+			start = n.lineno
+			end = n.end_lineno
+			if end is None:
+				continue
+			chunk = "\n".join(lines[start - 1:end])
+			chunks.append(chunk)
+		elif isinstance(n, ast.ClassDef):
+			start = n.lineno
+			end = n.end_lineno
+			if end is None:
+				continue
+			chunk = "\\n".join(lines[start - 1:end])
+			chunks.append(chunk)
+	return chunks
+
 
 
 root = Path("vllm-0.10.1")
