@@ -29,8 +29,10 @@ def chunk_python_file(file_path: Path) -> list[str]:
 			end = n.end_lineno
 			if end is None:
 				continue
-			chunk = "\\n".join(lines[start - 1:end])
+			chunk = "\n".join(lines[start - 1:end])
 			chunks.append(chunk)
+		else:
+			...
 	return chunks
 
 
@@ -39,7 +41,13 @@ root = Path("vllm-0.10.1")
 paths = find_python_files(root)
 
 #chunks = 
-[chunk_python_file(p) for p in paths]
+#[chunk_python_file(p) for p in paths]
+chunks = chunk_python_file(Path("testt.py"))
+
+for chunk in chunks:
+	print(chunk)
+	print(len(chunk))
+	
 
 # res = ast.parse(code)
 # print(res)
