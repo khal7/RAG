@@ -26,6 +26,9 @@ def split_statement_chunk(
     strings = "\n".join(statement)
     return (split_class_or_function(strings, chunk_size))
 
+def between_nodes(start_line: int, end_line: int, lines: list[str]) -> str:
+    gap = lines[end_line: start_line - 1]
+    return "\n".join(gap) + ("\n" if gap else "")
 
 def chunk_python_file(file_path: Path, chunk_size: int) -> list[str]:
     code = file_path.read_text()
@@ -35,25 +38,31 @@ def chunk_python_file(file_path: Path, chunk_size: int) -> list[str]:
     statement: list[str] = []
     if len(code) <= chunk_size:
         return [code]
+    end = 0
     for n in node.body:
         start = n.lineno
-        end = n.end_lineno
+        btw_node = between_nodes(start, end, lines)
         if isinstance(n, ast.FunctionDef) or isinstance(n, ast.ClassDef):
             if statement:
                 chunks.append("\n".join(statement))
                 statement = []
-            if end is None:
+            if n.end_lineno is None:
                 continue
-            chunk = "\n".join(lines[start - 1:end])
+            end = n.end_lineno
+            node_source = "\n".join(lines[start - 1:end])
+            chunk = btw_node + node_source
             if len(chunk) <= chunk_size:
                 chunks.append(chunk)
             else:
                 res = split_class_or_function(chunk, chunk_size)
                 chunks.extend(res)
         else:
-            if end is None:
+            if n.end_lineno is None:
                 continue
-            chunk = "\n".join(lines[start - 1:end])
+            end = n.end_lineno
+            node_source = "\n".join(lines[start - 1:end])
+            chunk = btw_node + node_source
+
             statement.append(chunk)
             if len("\n".join(statement)) > chunk_size:
                 res = split_statement_chunk(statement, chunk_size)
@@ -70,7 +79,7 @@ paths = find_python_files(root)
 
 # chunks =
 # [chunk_python_file(p) for p in paths]
-chunks = chunk_python_file(Path("testt.py"), 500)
+chunks = chunk_python_file(Path("testt.py"), 1500)
 
 for chunk in chunks:
     print(chunk)
