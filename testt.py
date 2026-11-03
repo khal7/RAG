@@ -127,6 +127,9 @@ def sample_requests_from_dataset(
 
     return filtered_requests
 
+# small function to test
+def function_to_test() -> None:
+	return "hello world"
 
 def sample_requests_from_random(
     num_requests: int,

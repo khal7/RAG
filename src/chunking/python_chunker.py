@@ -30,46 +30,73 @@ def between_nodes(start_line: int, end_line: int, lines: list[str]) -> str:
     gap = lines[end_line: start_line - 1]
     return "\n".join(gap) + ("\n" if gap else "")
 
+
+def get_statements(
+    temp_chunk: str,
+    accum_chunk: str,
+    chunks: list[str],
+    chunk_size: int
+) -> str:
+    # Case 1: The statement itself is oversized.
+    if len(temp_chunk) > chunk_size:
+        if accum_chunk:
+            chunks.append(accum_chunk)
+
+        chunks.extend(split_statement_chunk([temp_chunk], chunk_size))
+        return ""
+
+    # Case 2: The statement fits in the current accumulated chunk.
+    if len(accum_chunk) + len(temp_chunk) <= chunk_size:
+        return accum_chunk + temp_chunk
+
+    # Case 3: It doesn't fit in the current accumulated chunk.
+    if accum_chunk:
+        chunks.append(accum_chunk)
+
+    return temp_chunk
+
+
 def chunk_python_file(file_path: Path, chunk_size: int) -> list[str]:
     code = file_path.read_text()
     node = ast.parse(code)
     lines = code.splitlines()
     chunks: list[str] = []
-    statement: list[str] = []
+    accum_chunk = ""
     if len(code) <= chunk_size:
         return [code]
     end = 0
     for n in node.body:
         start = n.lineno
         btw_node = between_nodes(start, end, lines)
+        temp_chunk = ""
         if isinstance(n, ast.FunctionDef) or isinstance(n, ast.ClassDef):
-            if statement:
-                chunks.append("\n".join(statement))
-                statement = []
             if n.end_lineno is None:
                 continue
             end = n.end_lineno
-            node_source = "\n".join(lines[start - 1:end])
-            chunk = btw_node + node_source
-            if len(chunk) <= chunk_size:
-                chunks.append(chunk)
+            node_source = "\n".join(lines[start - 1: end])
+            temp_chunk = btw_node + node_source
+            if len(temp_chunk) > chunk_size:
+                if accum_chunk:
+                    chunks.append(accum_chunk)
+                chunks.extend(split_class_or_function(temp_chunk, chunk_size))
+                accum_chunk = ""
             else:
-                res = split_class_or_function(chunk, chunk_size)
-                chunks.extend(res)
+                if len(accum_chunk) + len(temp_chunk) <= chunk_size:
+                    accum_chunk += temp_chunk
+                else:
+                    if accum_chunk:
+                        chunks.append(accum_chunk)
+                    accum_chunk = temp_chunk
         else:
             if n.end_lineno is None:
                 continue
             end = n.end_lineno
-            node_source = "\n".join(lines[start - 1:end])
-            chunk = btw_node + node_source
+            node_source = "\n".join(lines[start - 1: end])
+            temp_chunk = btw_node + node_source
+            accum_chunk = get_statements(temp_chunk, accum_chunk, chunks, chunk_size)
 
-            statement.append(chunk)
-            if len("\n".join(statement)) > chunk_size:
-                res = split_statement_chunk(statement, chunk_size)
-                chunks.extend(res)
-                statement = []
-    if statement:
-        chunks.append("\n".join(statement))
+    if accum_chunk:
+        chunks.append(accum_chunk)
 
     return chunks
 
