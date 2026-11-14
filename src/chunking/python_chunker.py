@@ -17,13 +17,33 @@ def find_python_files(root: Path) -> list[Path]:
 	return paths
 
 
-def split_class_or_function(chunk: str, chunk_size: int) -> list[str]:
+def split_class_or_function(chunk: str, chunk_size: int) -> list[str]: # 100
 	i = 0
 	chunk_len = len(chunk)
+	chunk_lines = chunk.splitlines(keepends=True)
 	chunks: list[str] = []
-	while i < chunk_len:
-		chunks.append(chunk[i:i + chunk_size])
-		i += chunk_size
+	res = ""
+	for line in chunk_lines:
+		if len(line) > chunk_size:
+			if res:
+				chunks.append(res)
+				res = ""
+			i = 0
+			while i < chunk_len:
+				chunks.append(line[i:i + chunk_size])
+				i += chunk_size
+		elif len(res) + len(line) <= chunk_size:
+			res += line
+		elif len(res) + len(line) > chunk_size:
+			chunks.append(res)
+			if len(line) > chunk_size:
+				i = 0
+				while i < len(line):
+					chunks.append(line[i:i + chunk_size])
+					i += chunk_size
+			res = line
+	if res:
+		chunks.append(res)
 	return chunks
 
 
@@ -73,7 +93,7 @@ def get_offset(lines: list[str]) -> list[int]:
 	return res
 
 
-def chunk_python_file(file_path: Path, chunk_size: int) -> list[Chunk]:
+def chunk_python_file(file_path: Path, chunk_size: int=2000) -> list[Chunk]:
 	code = file_path.read_text()
 	node = ast.parse(code)
 	lines = code.splitlines(keepends=True)
@@ -81,7 +101,7 @@ def chunk_python_file(file_path: Path, chunk_size: int) -> list[Chunk]:
 	chunks: list[str] = []
 	accum_chunk = ""
 	if len(code) <= chunk_size:
-		return [code]
+		return [Chunk(content=code, char_start=0, char_end=len(code), file_path=str(file_path))]
 	end = 0
 	for n in node.body:
 		start = n.lineno
@@ -124,21 +144,46 @@ def chunk_python_file(file_path: Path, chunk_size: int) -> list[Chunk]:
 							char_end=pos + len(text),
 							content=text))
 		pos += len(text)
-	print(result[-1].char_end, len(code))
+	#print(result[-1].char_end, len(code))
 	return result
 
 
 root = Path("vllm-0.10.1")
 paths = find_python_files(root)
-
+failed = []
 # chunks =
 # [chunk_python_file(p) for p in paths]
-chunks = chunk_python_file(Path("testt.py"), 2000)
 
-# for chunk in chunks:
-# 	print(chunk)
-# 	print(len(chunk.content))
+for p in paths:
+	try:
+		chunks = chunk_python_file(Path(p), 2000)
+		text = Path(p).read_text(encoding="utf-8")
+	except Exception as e:
+		failed.append((p, repr(e)))
+		continue
+print("files:", len(paths), "failed:", len(failed))
+for p, why in failed:
+	print(p, why)
+	# for chunk in chunks:
+	# 	print(chunk.content)
+	# 	print(len(chunk.content))
+	# 	print("*" * 100)
+	# 	if (len(chunk.content) > 1000):
+	# 		raise ValueError
 
+
+# chunks = chunk_python_file(Path("testt.py"), 1000)
+# text = Path("testt.py").read_text(encoding="utf-8")
+
+# for c in chunks:
+#     assert text[c.char_start:c.char_end] == c.content
+
+# assert chunks[0].char_start == 0
+# for a, b in zip(chunks, chunks[1:]):
+#     assert a.char_end == b.char_start
+# assert chunks[-1].char_end == len(text)
+
+# print("ok")
 # res = ast.parse(code)
 # print(res)
 # print(ast.dump(res, indent=1, include_attributes=True))
