@@ -1,14 +1,7 @@
 from pydantic import BaseModel, Field, field_validator, ValidationError
 from pathlib import Path
 import ast
-
-
-class Chunk(BaseModel):
-	content: str
-	file_path: Path
-	char_start: int
-	char_end: int
-
+from src.chunking.model import Chunk
 
 def find_python_files(root: Path) -> list[Path]:
 	paths = []
@@ -147,23 +140,23 @@ def chunk_python_file(file_path: Path, chunk_size: int=2000) -> list[Chunk]:
 	#print(result[-1].char_end, len(code))
 	return result
 
+if __name__=="__main__":
+	root = Path("vllm-0.10.1")
+	paths = find_python_files(root)
+	failed = []
+	# chunks =
+	# [chunk_python_file(p) for p in paths]
 
-root = Path("vllm-0.10.1")
-paths = find_python_files(root)
-failed = []
-# chunks =
-# [chunk_python_file(p) for p in paths]
-
-for p in paths:
-	try:
-		chunks = chunk_python_file(Path(p), 2000)
-		text = Path(p).read_text(encoding="utf-8")
-	except Exception as e:
-		failed.append((p, repr(e)))
-		continue
-print("files:", len(paths), "failed:", len(failed))
-for p, why in failed:
-	print(p, why)
+	for p in paths:
+		try:
+			chunks = chunk_python_file(Path(p), 2000)
+			text = Path(p).read_text(encoding="utf-8")
+		except Exception as e:
+			failed.append((p, repr(e)))
+			continue
+	print("files:", len(paths), "failed:", len(failed))
+	for p, why in failed:
+		print(p, why)
 	# for chunk in chunks:
 	# 	print(chunk.content)
 	# 	print(len(chunk.content))
