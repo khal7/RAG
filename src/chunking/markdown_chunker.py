@@ -2,12 +2,16 @@
 from .model import Chunk
 from markdown_it import MarkdownIt
 from pathlib import Path
+from collections import Counter
 
 from src.chunking.python_chunker import get_offset, split_class_or_function
 
 
-def split_paragraph() -> str:
-	...
+def find_python_files(root: Path) -> list[Path]:
+	paths = []
+	for file in root.rglob("*.py"):
+		paths.append(file)
+	return paths
 
 
 def get_offset(lines: list[str]) -> list[int]:
@@ -31,9 +35,7 @@ def chunk_markdown_file(file_path: Path, chunk_size: int = 2000) -> list[Chunk]:
 	text_lines = text.splitlines(keepends=True)
 	offsets = get_offset(text_lines)
 	tokens = MarkdownIt().parse(text)
-	# for t in tokens[:5]:
-	# 	print(t.type, t.tag, t.map, t.level)
-
+	
 	headings = [t.map[0] for t in tokens if t.type == "heading_open"]
 	cuts = sorted(set([0] + headings + [len(text_lines)]))
 
@@ -64,36 +66,35 @@ def chunk_markdown_file(file_path: Path, chunk_size: int = 2000) -> list[Chunk]:
 		pos += len(content)
 	return result
 
-	# for token in tokens:
+if __name__ == "__main__":
+    root = Path("vllm-0.10.1")
+    size = 2000
+    paths = [p for p in root.rglob("*")
+             if p.suffix.lower() in {".md", ".txt"}]
+    failed = []
 
-	# 	if token.block and token.map is not None:
+    for p in paths:
+        try:
+            chunks = chunk_markdown_file(p, size)
+            with open(p, encoding="utf-8", newline="") as f:
+                text = f.read()
+            if not chunks:
+                continue
+            if any(text[c.char_start:c.char_end] != c.content
+                   for c in chunks):
+                failed.append((p, "not an exact copy"))
+            elif chunks[0].char_start != 0:
+                failed.append((p, "first chunk does not start at 0"))
+            elif any(a.char_end != b.char_start
+                     for a, b in zip(chunks, chunks[1:])):
+                failed.append((p, "gap between chunks"))
+            elif chunks[-1].char_end != len(text):
+                failed.append((p, "last chunk ends too early"))
+            elif any(len(c.content) > size for c in chunks):
+                failed.append((p, "chunk too big"))
+        except Exception as e:
+            failed.append((p, repr(e)))
 
-	# 		mp = token.map
-	# 		print("".join(text_lines[mp[0]:mp[1]]))
-
-	# if len(code) <= chunk_size:
-	# 	return [Chunk(content=code, char_start=0, char_end=len(code), file_path=str(file_path))]
-
-
-p = Path("README.md")
-chunks = chunk_markdown_file(p, 100)
-# for c in chunks:
-
-# 	print(c)
-# 	print(f"---------- len: {len(c)}")
-# 	print("*" * 60)
-text = open(p, encoding="utf-8", newline="").read()
-for c in chunks:
-	assert text[c.char_start:c.char_end] == c.content
-assert chunks[0].char_start == 0
-for a, b in zip(chunks, chunks[1:]):
-	assert a.char_end == b.char_start
-assert chunks[-1].char_end == len(text)
-print("ok")
-# for c in chunks:
-#     assert text[c.char_start:c.char_end] == c.content
-# assert chunks[0].char_start == 0
-# for a, b in zip(chunks, chunks[1:]):
-#     assert a.char_end == b.char_start
-# assert chunks[-1].char_end == len(text)
-# print("ok")
+    print("files:", len(paths), "failed:", len(failed))
+    for p, why in failed[:10]:
+        print(p, why[:100])
