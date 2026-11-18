@@ -4,6 +4,6 @@ from pathlib import Path
 
 class Chunk(BaseModel):
     content: str
-    file_path: Path
+    file_path: str 
     char_start: int
     char_end: int
