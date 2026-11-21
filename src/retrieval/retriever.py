@@ -1,6 +1,7 @@
 from src.chunking.model import Chunk
 from src.chunking.model import MinimalSource
 from src.retrieval.tokenizer import tokenize
+from rank_bm25 import BM25Okapi
 
 
 def search(query: str, bm25: BM25Okapi,

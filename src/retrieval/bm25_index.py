@@ -9,13 +9,13 @@ import time
 import json
 
 
-def laod_chunks(path: Path) -> list[Chunk]:
+def load_chunks(path: Path) -> list[Chunk]:
     with open(path, 'r', encoding="utf-8") as file:
         data = json.load(file)
     return [Chunk(**d) for d in data]
 
 
-def dump_chunks(path: Path):
+def dump_chunks(chunks: list[Chunk], path: Path):
 
     with open(path, 'w', encoding='utf-8') as file:
         json.dump([c.model_dump() for c in chunks], file)
