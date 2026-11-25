@@ -16,7 +16,8 @@ CHUNKS_FILE = PROCESSED_DIR / "chunks.json"
 
 def search_cmd(query: str, k: int = 10) -> None:
     chunks = load_chunks(Path("data/processed/chunks.json"))
-    bm25 = BM25Okapi([tokenize(c.content) for c in chunks])
+    bm25 = BM25Okapi([tokenize(c.content) + tokenize(c.file_path)
+                     for c in chunks])
     for s in search(query, bm25, chunks, k):
         print(s)
 
@@ -32,7 +33,8 @@ def index_cmd(max_chunk_size: int = 2000,
 def search_dataset_cmd(dataset_path: str, k: int = 10,
                        save_directory: str = "data/output") -> None:
     chunks = load_chunks(Path("data/processed/chunks.json"))
-    bm25 = BM25Okapi([tokenize(c.content) for c in chunks])
+    bm25 = BM25Okapi([tokenize(c.content) + tokenize(c.file_path)
+                     for c in chunks])
     data = load_dataset(
         Path(dataset_path))
     results = []
@@ -41,8 +43,6 @@ def search_dataset_cmd(dataset_path: str, k: int = 10,
         results.append(MinimalSearchResults(question_id=q.question_id,
                                             question=q.question,
                                             retrieved_sources=res))
-
-
     output = StudentSearchResults(search_results=results, k=k)
     out_dir = Path(save_directory)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -50,11 +50,11 @@ def search_dataset_cmd(dataset_path: str, k: int = 10,
 
     with open(out_file, "w", encoding="utf-8") as f:
         json.dump(output.model_dump(), f)
-
     print(f"Saved student_search_results to {out_file}")
 
 
 if __name__ == "__main__":
     fire.Fire({"search": search_cmd,
                "index": index_cmd,
-               "search_dataset": search_dataset_cmd})
+               "search_dataset": search_dataset_cmd,
+               "evaluate": ...})

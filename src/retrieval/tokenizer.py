@@ -17,6 +17,8 @@ def tokenize(text: str) -> list[str]:
 		result.append(w)
 		if "_" in w:
 			result.extend(p for p in w.split("_") if p)
+		if "-" in w:
+			result.extend(p for p in w.split("-") if p)
 	return result
 
 
