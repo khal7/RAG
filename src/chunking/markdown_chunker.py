@@ -2,69 +2,65 @@
 from .model import Chunk
 from markdown_it import MarkdownIt
 from pathlib import Path
-from collections import Counter
-
-from src.chunking.python_chunker import get_offset, split_class_or_function
+from src.chunking.python_chunker import (
+    split_class_or_function,
+    pieces_to_chunks
+)
 
 
 def find_python_files(root: Path) -> list[Path]:
-	paths = []
-	for file in root.rglob("*.py"):
-		paths.append(file)
-	return paths
+    paths = []
+    for file in root.rglob("*.py"):
+        paths.append(file)
+    return paths
 
 
 def get_offset(lines: list[str]) -> list[int]:
 
-	res: list[int] = []
-	previous = 0
-	for i in range(len(lines)):
-		res.append(previous)
-		previous += len(lines[i])
-	res.append(previous)
-	return res
+    res: list[int] = []
+    previous = 0
+    for i in range(len(lines)):
+        res.append(previous)
+        previous += len(lines[i])
+    res.append(previous)
+    return res
 
 
-def chunk_markdown_file(file_path: Path, chunk_size: int = 2000) -> list[Chunk]:
+def chunk_markdown_file(
+        file_path: Path,
+        chunk_size: int = 2000) -> list[Chunk]:
 
-	chunks: list[str] = []
-	with open(file_path, encoding="utf-8", newline="") as f:
-		text = f.read()
-	if not text:
-		return []
-	text_lines = text.splitlines(keepends=True)
-	offsets = get_offset(text_lines)
-	tokens = MarkdownIt().parse(text)
-	
-	headings = [t.map[0] for t in tokens if t.type == "heading_open"]
-	cuts = sorted(set([0] + headings + [len(text_lines)]))
+    chunks: list[str] = []
+    with open(file_path, encoding="utf-8", newline="") as f:
+        text = f.read()
+    if not text:
+        return []
+    text_lines = text.splitlines(keepends=True)
+    offsets = get_offset(text_lines)
+    tokens = MarkdownIt().parse(text)
 
-	accum = ""
-	for i in range(len(cuts) - 1):
+    headings = [t.map[0] for t in tokens if t.type ==
+                "heading_open" and t.map is not None]
+    cuts = sorted(set([0] + headings + [len(text_lines)]))
 
-		chunk = text[offsets[cuts[i]]:offsets[cuts[i + 1]]]
-		if len(chunk) > chunk_size:
-			if accum:
-				chunks.append(accum)
-				accum = ""
-			chunks.extend(split_class_or_function(chunk, chunk_size))
-		elif len(accum) + len(chunk) <= chunk_size:
-			accum += chunk
-		else:
-			chunks.append(accum)
-			accum = chunk
-	if accum:
-		chunks.append(accum)
+    accum = ""
+    for i in range(len(cuts) - 1):
 
-	pos = 0
-	result: list[Chunk] = []
-	for content in chunks:
-		result.append(Chunk(file_path=str(file_path),
-							char_start=pos,
-							char_end=pos + len(content),
-							content=content))
-		pos += len(content)
-	return result
+        chunk = text[offsets[cuts[i]]:offsets[cuts[i + 1]]]
+        if len(chunk) > chunk_size:
+            if accum:
+                chunks.append(accum)
+                accum = ""
+            chunks.extend(split_class_or_function(chunk, chunk_size))
+        elif len(accum) + len(chunk) <= chunk_size:
+            accum += chunk
+        else:
+            chunks.append(accum)
+            accum = chunk
+    if accum:
+        chunks.append(accum)
+    return pieces_to_chunks(chunks, file_path)
+
 
 if __name__ == "__main__":
     root = Path("vllm-0.10.1")

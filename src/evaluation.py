@@ -1,4 +1,5 @@
-from src.chunking.model import MinimalSource, AnsweredQuestion, StudentSearchResults
+from src.chunking.model import (
+    MinimalSource, AnsweredQuestion, StudentSearchResults)
 from src.retrieval.dataset import load_dataset
 import json
 from pathlib import Path

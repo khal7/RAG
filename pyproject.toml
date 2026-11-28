@@ -11,3 +11,11 @@ dependencies = [
     "tqdm>=4.70.1",
     "transformers>=5.20.2",
 ]
+
+[dependency-groups]
+dev = [
+    "autoflake>=2.4.0",
+    "autopep8>=2.3.2",
+    "flake8>=7.4.1",
+    "mypy>=2.4.1",
+]
